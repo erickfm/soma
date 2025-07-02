@@ -14,8 +14,23 @@ def ensure_model():
     return MODEL_DIR
 
 
-def mesh():
-    pass
+def mesh(prompt: str, *, resolution: float = 9.0, output: str | None = None, model_path: str | None = None):
+    """Generate a 3D mesh from a text ``prompt``.
+
+    This implementation simply prints what it would do. In a real
+    application this function would call the underlying model to produce
+    the mesh and then save it to ``output``.
+    """
+
+    if model_path is None:
+        model_path = ensure_model()
+
+    print(f"Generating mesh with prompt={prompt!r}, resolution={resolution}")
+    print(f"Using model weights at {model_path}")
+    if output:
+        print(f"Result will be saved to {output}")
+
+    return output
 
 
 def main():
