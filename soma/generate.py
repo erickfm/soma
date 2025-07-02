@@ -11,7 +11,8 @@ import paramiko
 import trimesh
 import torch
 from huggingface_hub import snapshot_download
-from cube3d.inference.engine import Engine, EngineFast
+# Import the actual Cube library (installed as 'cube')
+from cube.inference.engine import Engine, EngineFast
 
 # Directory where model weights will be stored (next to this file)
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model_weights")
