@@ -1,7 +1,10 @@
-#!/usr/bin/env python3
+"""
+Library module for Cube3D mesh generation.
+
+Provides ensure_model() and mesh() functions for programmatic use.
+"""
 import os
 import tempfile
-import argparse
 from urllib.parse import urlparse
 import getpass
 import paramiko
@@ -10,13 +13,16 @@ import torch
 from huggingface_hub import snapshot_download
 from cube3d.inference.engine import Engine, EngineFast
 
-# where we’ll stash the model files next to this script
-BASE_DIR   = os.path.dirname(__file__)
-MODEL_DIR  = os.path.join(BASE_DIR, "model_weights")
-REPO_ID    = "Roblox/cube3d-v0.1"  # correct HF repo :contentReference[oaicite:0]{index=0}
+# Directory where model weights will be stored (next to this file)
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "model_weights")
+# Correct Hugging Face repo for Cube3D
+REPO_ID = "Roblox/cube3d-v0.1"
 
 def ensure_model() -> str:
-    """Download model files into MODEL_DIR if they’re missing."""
+    """
+    Download model weights if MODEL_DIR is missing.
+    Returns the path to the model directory.
+    """
     if not os.path.isdir(MODEL_DIR):
         print("⏬ Downloading Cube3D weights…")
         snapshot_download(repo_id=REPO_ID, local_dir=MODEL_DIR)
@@ -29,32 +35,35 @@ def mesh(
     output: str | None = None,
     model_path: str | None = None,
 ) -> str:
-    """Generate a 3D mesh from `prompt` and write it to `output`."""
+    """
+    Generate a 3D mesh from text prompt.
+    Saves to `output` (local path or ssh://) and returns the output path.
+    """
+    # ensure we have model files
     model_path = model_path or ensure_model()
 
-    # paths inside the HF snapshot
+    # prepare checkpoint and config locations
     config_path     = os.path.join(model_path, "open_model.yaml")
     gpt_ckpt_path   = os.path.join(model_path, "shape_gpt.safetensors")
     shape_ckpt_path = os.path.join(model_path, "shape_tokenizer.safetensors")
 
+    # pick CPU or GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     EngineCls = EngineFast if device.type == "cuda" else Engine
     engine = EngineCls(config_path, gpt_ckpt_path, shape_ckpt_path, device=device)
 
-    # generate
-    print(f"⚙️  Generating mesh (“{prompt}”) @ res={resolution}…")
-    mesh_vf = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)
-    verts, faces = mesh_vf[0][0], mesh_vf[0][1]
+    # run text-to-mesh
+    verts, faces = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)[0][:2]
     mesh_obj = trimesh.Trimesh(vertices=verts, faces=faces)
 
-    # pick default filename
-    if not output:
+    # fallback filename if none provided
+    if output is None:
         safe = prompt.lower().replace(" ", "_")[:40]
         output = f"{safe}.obj"
 
     parsed = urlparse(output)
     if parsed.scheme == "ssh":
-        # write locally then push via SFTP
+        # export locally then upload via SFTP
         with tempfile.NamedTemporaryFile(suffix=".obj", delete=False) as tmp:
             mesh_obj.export(tmp.name)
             tmp.flush()
@@ -62,52 +71,19 @@ def mesh(
             user = parsed.username or getpass.getuser()
             host = parsed.hostname
             port = parsed.port or 22
-            remote_path = parsed.path
+            path = parsed.path
 
-            print(f"🔗 Uploading to {user}@{host}:{remote_path}…")
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(hostname=host, port=port, username=user)
             sftp = client.open_sftp()
             try:
-                sftp.put(tmp.name, remote_path)
+                sftp.put(tmp.name, path)
             finally:
                 sftp.close()
                 client.close()
     else:
-        print(f"💾 Saving mesh to {output}")
+        # local export
         mesh_obj.export(output)
 
     return output
-
-def main():
-    p = argparse.ArgumentParser(description="Text→3D mesh with Roblox Cube3D")
-    p.add_argument("prompt", help="Text prompt describing the shape")
-    p.add_argument(
-        "--resolution","-r", type=float, default=9.0,
-        help="Base resolution (higher=more detail)"
-    )
-    p.add_argument(
-        "--output","-o", default=None,
-        help="Where to write the .obj (local path or ssh://user@host/path.obj)"
-    )
-    p.add_argument(
-        "--model-path","-m", default=None,
-        help="Pre-downloaded model directory (skip automatic download)"
-    )
-    args = p.parse_args()
-
-    try:
-        out = mesh(
-            args.prompt,
-            resolution=args.resolution,
-            output=args.output,
-            model_path=args.model_path,
-        )
-        print("✅ Done! Mesh written to:", out)
-    except Exception as e:
-        print("❌ Error:", e)
-        raise
-
-if __name__ == "__main__":
-    main()
