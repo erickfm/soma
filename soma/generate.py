@@ -7,14 +7,16 @@ import getpass
 import paramiko
 import trimesh
 from huggingface_hub import snapshot_download
+import torch
+from cube3d.inference.engine import Engine, EngineFast
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model_weights")
 
 def ensure_model():
     if not os.path.isdir(MODEL_DIR):
-        print("⏬ downloading Roblox/cube3d-v0.1…")
+        print("⏬ downloading Roblox/cube…")
         snapshot_download(
-            repo_id="Roblox/cube3d-v0.1",
+            repo_id="Roblox/cube",
             local_dir=MODEL_DIR
         )
     return MODEL_DIR
@@ -31,16 +33,18 @@ def mesh(prompt: str, *, resolution: float = 9.0, output: str | None = None, mod
     if model_path is None:
         model_path = ensure_model()
 
-    # Map prompt keywords to simple geometric primitives
-    prompt_lower = prompt.lower()
-    if "sphere" in prompt_lower:
-        mesh_obj = trimesh.creation.icosphere(subdivisions=3, radius=resolution)
-    elif "cylinder" in prompt_lower:
-        mesh_obj = trimesh.creation.cylinder(radius=resolution / 2, height=resolution)
-    elif "cone" in prompt_lower:
-        mesh_obj = trimesh.creation.cone(radius=resolution / 2, height=resolution)
-    else:
-        mesh_obj = trimesh.creation.box(extents=(resolution, resolution, resolution))
+    # Use Roblox Cube engine to generate the mesh
+    config_path = os.path.join(model_path, "open_model.yaml")
+    gpt_ckpt_path = os.path.join(model_path, "shape_gpt.safetensors")
+    shape_ckpt_path = os.path.join(model_path, "shape_tokenizer.safetensors")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    EngineCls = EngineFast if device.type == "cuda" else Engine
+    engine = EngineCls(config_path, gpt_ckpt_path, shape_ckpt_path, device=device)
+
+    mesh_v_f = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)
+    vertices, faces = mesh_v_f[0][0], mesh_v_f[0][1]
+    mesh_obj = trimesh.Trimesh(vertices=vertices, faces=faces)
 
     if output is None:
         output = "mesh.obj"

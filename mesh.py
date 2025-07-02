@@ -8,7 +8,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Generate a 3D mesh from a text prompt")
     parser.add_argument("--prompt", required=True, help="Text prompt to generate the mesh from")
     parser.add_argument("--resolution", type=float, default=9.0,
-                        help="Base resolution of the mesh (default: 9.0)")
+                        help="Resolution base for Cube inference (default: 9.0)")
     parser.add_argument("--output", help="Output path for the mesh")
     return parser.parse_args()
 
