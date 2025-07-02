@@ -43,7 +43,7 @@ def mesh(
     model_path = model_path or ensure_model()
 
     # prepare checkpoint and config locations
-    config_path     = os.path.join(model_path, "open_model.yaml")
+    config_path     = os.path.join("cube3d/configs/", "open_model.yaml")
     gpt_ckpt_path   = os.path.join(model_path, "shape_gpt.safetensors")
     shape_ckpt_path = os.path.join(model_path, "shape_tokenizer.safetensors")
 

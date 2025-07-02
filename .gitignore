@@ -253,3 +253,4 @@ $RECYCLE.BIN/
 
 # Misc
 .idea/
+.soma/model_weights/
