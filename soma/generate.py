@@ -54,6 +54,13 @@ def mesh(
     EngineCls = EngineFast if device.type == "cuda" else Engine
     engine = EngineCls(config_path, gpt_ckpt_path, shape_ckpt_path, device=device)
 
+    # Try reducing GPU memory usage via half precision
+    if device.type == "cuda":
+        try:
+            engine.model = engine.model.half()
+        except AttributeError:
+            print("⚠️ Warning: Could not convert model to half precision")
+
     # run text-to-mesh
     verts, faces = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)[0][:2]
     mesh_obj = trimesh.Trimesh(vertices=verts, faces=faces)
