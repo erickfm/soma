@@ -18,7 +18,7 @@ def main():
 
     output = args.output
     if output is None:
-        output = f"ssh://192.168.1.140/Users/erick/soma/output/{uuid.uuid4().hex}.obj"
+        output = f"ssh://192.168.1.140/Users/erick/soma/output/{args.prompt}-{uuid.uuid4().hex}.obj"
 
     model_path = ensure_model()
     mesh(args.prompt, resolution=args.resolution, output=output, model_path=model_path)
