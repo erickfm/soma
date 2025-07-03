@@ -55,7 +55,8 @@ def mesh(
     engine = EngineCls(config_path, gpt_ckpt_path, shape_ckpt_path, device=device)
 
     # run text-to-mesh
-    verts, faces = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)[0][:2]
+    with torch.inference_mode():
+        verts, faces = engine.t2s([prompt], use_kv_cache=True, resolution_base=resolution)[0][:2]
     mesh_obj = trimesh.Trimesh(vertices=verts, faces=faces)
 
     # fallback filename if none provided
