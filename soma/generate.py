@@ -63,7 +63,6 @@ def mesh(
 
     parsed = urlparse(output)
     if parsed.scheme == "ssh":
-        # export locally then upload via SFTP
         with tempfile.NamedTemporaryFile(suffix=".obj", delete=False) as tmp:
             mesh_obj.export(tmp.name)
             tmp.flush()
@@ -79,17 +78,17 @@ def mesh(
             client.connect(hostname=host, port=port, username=user, password=_pass)
             sftp = client.open_sftp()
             try:
-                # Ensure remote directory exists
                 def sftp_mkdirs(sftp, remote_path):
-                    dirs = os.path.dirname(remote_path).strip('/').split('/')
-                    current = ''
+                    dirs = os.path.dirname(remote_path).split('/')
+                    path_so_far = ''
                     for d in dirs:
-                        current += f'/{d}'
+                        if not d:
+                            continue
+                        path_so_far += '/' + d
                         try:
-                            sftp.chdir(current)
-                        except IOError:
-                            sftp.mkdir(current)
-                            sftp.chdir(current)
+                            sftp.stat(path_so_far)
+                        except FileNotFoundError:
+                            sftp.mkdir(path_so_far)
 
                 sftp_mkdirs(sftp, path)
                 sftp.put(tmp.name, path)
@@ -97,7 +96,6 @@ def mesh(
                 sftp.close()
                 client.close()
     else:
-        # local export
         mesh_obj.export(output)
 
     return output
