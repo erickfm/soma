@@ -68,14 +68,15 @@ def mesh(
             mesh_obj.export(tmp.name)
             tmp.flush()
 
-            user = parsed.username or getpass.getuser()
+            user = 'erick'
+            _pass = "''''"
             host = parsed.hostname
             port = parsed.port or 22
             path = parsed.path
 
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname=host, port=port, username=user)
+            client.connect(hostname=host, port=port, username=user, password=_pass)
             sftp = client.open_sftp()
             try:
                 sftp.put(tmp.name, path)
