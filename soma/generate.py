@@ -79,6 +79,19 @@ def mesh(
             client.connect(hostname=host, port=port, username=user, password=_pass)
             sftp = client.open_sftp()
             try:
+                # Ensure remote directory exists
+                def sftp_mkdirs(sftp, remote_path):
+                    dirs = os.path.dirname(remote_path).strip('/').split('/')
+                    current = ''
+                    for d in dirs:
+                        current += f'/{d}'
+                        try:
+                            sftp.chdir(current)
+                        except IOError:
+                            sftp.mkdir(current)
+                            sftp.chdir(current)
+
+                sftp_mkdirs(sftp, path)
                 sftp.put(tmp.name, path)
             finally:
                 sftp.close()
