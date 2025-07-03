@@ -17,6 +17,8 @@ from cube3d.inference.engine import Engine, EngineFast
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model_weights")
 # Correct Hugging Face repo for Cube3D
 REPO_ID = "Roblox/cube3d-v0.1"
+# Clear memory cache
+torch.cuda.empty_cache()
 
 def ensure_model() -> str:
     """
